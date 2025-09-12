@@ -1,7 +1,7 @@
 <?php
 /**
  * This file is part of Servicios plugin for FacturaScripts
- * Copyright (C) 2020-2024 Carlos Garcia Gomez <carlos@facturascripts.com>
+ * Copyright (C) 2020-2025 Carlos Garcia Gomez <carlos@facturascripts.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as
@@ -19,9 +19,9 @@
 
 namespace FacturaScripts\Plugins\Servicios;
 
-use FacturaScripts\Core\Base\AjaxForms\SalesHeaderHTML;
 use FacturaScripts\Core\Base\DataBase;
 use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
+use FacturaScripts\Core\Lib\AjaxForms\SalesHeaderHTML;
 use FacturaScripts\Core\Model\Role;
 use FacturaScripts\Core\Model\RoleAccess;
 use FacturaScripts\Core\Plugins;
@@ -91,7 +91,9 @@ final class Init extends InitClass
         new Model\MaquinaAT();
         new Model\PrioridadAT();
         new Model\TipoAT();
+        new Model\CheckAT();
         new Model\ServicioAT();
+        new Model\ServicioCheckAT();
         new PresupuestoCliente();
         new AlbaranCliente();
         new FacturaCliente();
@@ -108,7 +110,7 @@ final class Init extends InitClass
 
         // creates the role if not exists
         $role = new Role();
-        if (false === $role->loadFromCode(self::ROLE_NAME)) {
+        if (false === $role->load(self::ROLE_NAME)) {
             $role->codrole = $role->descripcion = self::ROLE_NAME;
             if (false === $role->save()) {
                 // rollback and exit on fail
@@ -125,7 +127,7 @@ final class Init extends InitClass
                 new DataBaseWhere('codrole', self::ROLE_NAME),
                 new DataBaseWhere('pagename', $nameController)
             ];
-            if ($roleAccess->loadFromCode('', $where)) {
+            if ($roleAccess->loadWhere($where)) {
                 // permission exists? Then skip
                 continue;
             }
@@ -195,10 +197,10 @@ final class Init extends InitClass
         $notificationModel = new EmailNotification();
         $keys = [
             'new-service-assignee', 'new-service-agent', 'new-service-customer',
-            'new-service-status', 'new-service-user'
+            'new-service-status', 'new-service-user', 'new-start-service'
         ];
         foreach ($keys as $key) {
-            if ($notificationModel->loadFromCode($key)) {
+            if ($notificationModel->load($key)) {
                 continue;
             }
 

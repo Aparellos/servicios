@@ -19,6 +19,7 @@
 
 namespace FacturaScripts\Plugins\Servicios\Controller;
 
+use Exception;
 use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
 use FacturaScripts\Core\Lib\ExtendedController\BaseView;
 use FacturaScripts\Core\Lib\ExtendedController\DocFilesTrait;
@@ -67,7 +68,7 @@ class EditServicioAT extends EditController
 
         $model = new TrabajoAT();
         $code = $this->request->request->get('code', '');
-        if (false === $model->loadFromCode($code)) {
+        if (false === $model->load($code)) {
             return true;
         }
 
@@ -85,12 +86,16 @@ class EditServicioAT extends EditController
 
     /**
      * Create the view to display.
+     *
+     * @throws Exception
      */
     protected function createViews()
     {
         parent::createViews();
         $this->setTabsPosition('top');
         $this->createViewsWorks();
+        $this->createViewsCategories();
+        $this->createViewsChecks();
         $this->createViewDocFiles();
         $this->createViewsInvoices();
         $this->createViewsDeliveryNotes();
@@ -98,6 +103,35 @@ class EditServicioAT extends EditController
         $this->createViewLogs();
     }
 
+    /**
+     * Add the categories of the service view.
+     *
+     * @param string $viewName
+     * @return void
+     */
+    protected function createViewsCategories(string $viewName = 'EditServicioCategoriaAT'): void
+    {
+        $this->addEditListView($viewName, 'ServicioCategoriaAT', 'categories', 'fa-solid fa-tags')
+            ->setInLine(true);
+    }
+
+    /**
+     * Add the checks of the service view.
+     *
+     * @param string $viewName
+     * @return void
+     */
+    protected function createViewsChecks(string $viewName = 'EditServicioCheckAT'): void
+    {
+        $this->addEditListView($viewName, 'ServicioCheckAT', 'verifications', 'fa-solid fa-list-check')
+            ->setInLine(true);
+    }
+
+    /**
+     * @param string $viewName
+     * @return void
+     * @throws Exception
+     */
     protected function createViewsDeliveryNotes(string $viewName = 'ListAlbaranCliente'): void
     {
         $this->addListView($viewName, 'AlbaranCliente', 'delivery-notes', 'fa-solid fa-dolly-flatbed')
@@ -116,6 +150,11 @@ class EditServicioAT extends EditController
         ]);
     }
 
+    /**
+     * @param string $viewName
+     * @return void
+     * @throws Exception
+     */
     protected function createViewsEstimations(string $viewName = 'ListPresupuestoCliente'): void
     {
         $this->addListView($viewName, 'PresupuestoCliente', 'estimations', 'fa-regular fa-file-powerpoint')
@@ -134,6 +173,11 @@ class EditServicioAT extends EditController
         ]);
     }
 
+    /**
+     * @param string $viewName
+     * @return void
+     * @throws Exception
+     */
     protected function createViewsInvoices(string $viewName = 'ListFacturaCliente'): void
     {
         $this->addListView($viewName, 'FacturaCliente', 'invoices', 'fa-solid fa-file-invoice-dollar')
@@ -252,6 +296,7 @@ class EditServicioAT extends EditController
      *
      * @param string $viewName
      * @param BaseView $view
+     * @throws Exception
      */
     protected function loadData($viewName, $view)
     {
@@ -303,6 +348,19 @@ class EditServicioAT extends EditController
                 $view->loadData('', $where, $orderBy);
                 break;
 
+            case 'EditServicioCategoriaAT':
+            case 'EditServicioCheckAT':
+                $where = [ new DataBaseWhere('idservice', $idservicio) ];
+                $view->loadData('', $where);
+                // Remove checks if the service has no categories and checks.
+                if ($viewName === 'EditServicioCheckAT'
+                    && $this->views['EditServicioCategoriaAT']->count === 0
+                    && $this->views['EditServicioCheckAT']->count === 0
+                ) {
+                    unset($this->views['EditServicioCheckAT']);
+                }
+                break;
+
             case 'EditTrabajoAT':
                 $where = [new DataBaseWhere('idservicio', $idservicio)];
                 $orderBy = ['fechainicio' => 'DESC', 'horainicio' => 'DESC', 'idtrabajo' => 'DESC'];
@@ -351,7 +409,7 @@ class EditServicioAT extends EditController
 
         $service = new ServicioAT();
         $code = $this->request->get('code', '');
-        if (false === $service->loadFromCode($code) || false === $service->editable) {
+        if (false === $service->load($code) || false === $service->editable) {
             return true;
         }
 
@@ -373,7 +431,7 @@ class EditServicioAT extends EditController
 
         $service = new ServicioAT();
         $code = $this->request->get('code', '');
-        if (false === $service->loadFromCode($code) || false === $service->editable) {
+        if (false === $service->load($code) || false === $service->editable) {
             return true;
         }
 
@@ -395,7 +453,7 @@ class EditServicioAT extends EditController
 
         $service = new ServicioAT();
         $code = $this->request->get('code', '');
-        if (false === $service->loadFromCode($code) || false === $service->editable) {
+        if (false === $service->load($code) || false === $service->editable) {
             return true;
         }
 
