@@ -286,21 +286,21 @@ class TrabajoAT extends Base\ModelOnChangeClass
     // /**
     //  * Devuelve el precio con IVA (PVP)
     //  */
-    // public function getPvpConIva(): float
-    // {
-    //     $iva = $this->iva;
-    //     if (is_null($iva) && $this->codimpuesto) {
-    //         $impuesto = new \FacturaScripts\Dinamic\Model\Impuesto();
-    //         if ($impuesto->loadFromCode($this->codimpuesto)) {
-    //             $iva = $impuesto->iva;
-    //         }
-    //     }
+     public function getPvpConIva(): float
+     {
+         $iva = $this->iva;
+         if (is_null($iva) && $this->codimpuesto) {
+             $impuesto = new \FacturaScripts\Dinamic\Model\Impuesto();
+             if ($impuesto->loadFromCode($this->codimpuesto)) {
+                 $iva = $impuesto->iva;
+             }
+         }
         
-    //     // Fallback to default if still null
-    //     if (is_null($iva)) {
-    //         $iva = 21;
-    //     }
+         // Fallback to default if still null
+         if (is_null($iva)) {
+             $iva = 21;
+         }
         
-    //     return round($this->precio * (1 + $iva / 100), 2);
-    // }
+         return round($this->precio * (1 + $iva / 100), 2);
+     }
 }
