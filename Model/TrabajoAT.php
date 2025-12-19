@@ -114,6 +114,10 @@ class TrabajoAT extends Base\ModelOnChangeClass
             if ($producto->codimpuesto) {
                 $this->codimpuesto = $producto->codimpuesto;
             }
+        } else {
+            // Si no hay referencia, limpiamos los datos de impuestos para permitir el fallback al valor por defecto
+            $this->codimpuesto = null;
+            $this->iva = null;
         }
 
         if (empty($this->codimpuesto)) {
@@ -128,9 +132,26 @@ class TrabajoAT extends Base\ModelOnChangeClass
             }
         }
 
-        // Fallback: If price is 0 but PVP is set, calculate price from PVP
+        // Fallback: Si el precio es 0 pero el PVP está definido, calculamos el precio desde el PVP
         if (empty($this->precio) && !empty($this->pvp_con_iva)) {
-            $iva = is_null($this->iva) ? 21 : $this->iva;
+            $iva = is_null($this->iva) ? 0 : $this->iva;
+            
+            // Si el IVA es 0, intentamos obtenerlo del impuesto por defecto
+            if ($iva === 0.0 && empty($this->codimpuesto)) {
+                $defaultCodImpuesto = Tools::settings('default', 'codimpuesto');
+                if ($defaultCodImpuesto) {
+                    $impuesto = new \FacturaScripts\Dinamic\Model\Impuesto();
+                    if ($impuesto->loadFromCode($defaultCodImpuesto)) {
+                        $iva = $impuesto->iva;
+                    }
+                }
+            }
+            
+            // Fallback final a 21 si sigue siendo 0 (y no se ha establecido explícitamente a 0)
+            if ($iva === 0.0 && empty($this->codimpuesto)) {
+                $iva = 21;
+            }
+            
             $this->precio = $this->pvp_con_iva / (1 + $iva / 100);
         }
 
@@ -190,6 +211,10 @@ class TrabajoAT extends Base\ModelOnChangeClass
                     $this->iva = $impuesto->iva;
                 }
             }
+        } else {
+            // Limpiamos los datos de impuestos si se borra la referencia
+            $this->codimpuesto = null;
+            $this->iva = null;
         }
     }
 
@@ -283,24 +308,27 @@ class TrabajoAT extends Base\ModelOnChangeClass
         $stock->save();
     }
 
-    // /**
-    //  * Devuelve el precio con IVA (PVP)
-    //  */
-     public function getPvpConIva(): float
-     {
-         $iva = $this->iva;
-         if (is_null($iva) && $this->codimpuesto) {
-             $impuesto = new \FacturaScripts\Dinamic\Model\Impuesto();
-             if ($impuesto->loadFromCode($this->codimpuesto)) {
-                 $iva = $impuesto->iva;
-             }
-         }
+    /**
+     * Devuelve el precio con IVA (PVP)
+     */
+    public function getPvpConIva(): float
+    {
+        $iva = $this->iva;
+        if (is_null($iva) || (empty($this->referencia) && empty($this->codimpuesto))) {
+            $codImpuesto = $this->codimpuesto ?: Tools::settings('default', 'codimpuesto');
+            if ($codImpuesto) {
+                $impuesto = new \FacturaScripts\Dinamic\Model\Impuesto();
+                if ($impuesto->loadFromCode($codImpuesto)) {
+                    $iva = $impuesto->iva;
+                }
+            }
+        }
         
-         // Fallback to default if still null
-         if (is_null($iva)) {
-             $iva = 21;
-         }
+        // Fallback al valor por defecto si sigue siendo nulo
+        if (is_null($iva)) {
+            $iva = 21;
+        }
         
-         return round($this->precio * (1 + $iva / 100), 2);
-     }
+        return round($this->precio * (1 + $iva / 100), 2);
+    }
 }
