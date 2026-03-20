@@ -1,7 +1,7 @@
 <?php
 /**
  * This file is part of Servicios plugin for FacturaScripts
- * Copyright (C) 2024 Carlos Garcia Gomez <carlos@facturascripts.com>
+ * Copyright (C) 2025 Carlos Garcia Gomez <carlos@facturascripts.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as
@@ -20,12 +20,12 @@
 namespace FacturaScripts\Plugins\Servicios\Extension\Controller;
 
 use Closure;
-use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
 use FacturaScripts\Core\Model\AttachedFileRelation;
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Core\Where;
 use FacturaScripts\Dinamic\Model\CodeModel;
-use FacturaScripts\Plugins\Servicios\Model\ServicioAT;
-use FacturaScripts\Plugins\Servicios\Model\TrabajoAT;
+use FacturaScripts\Dinamic\Model\ServicioAT;
+use FacturaScripts\Dinamic\Model\TrabajoAT;
 
 /**
  * @author Daniel Fernández Giménez <hola@danielfg.es>
@@ -36,7 +36,7 @@ class CopyModel
     {
         return function($model) {
             if ($this->modelClass === 'ServicioAT') {
-                $this->title = Tools::lang()->trans('copy') . ' ' . Tools::lang()->trans('service') . ' ' . $model->primaryDescription();
+                $this->title = Tools::trans('copy') . ' ' . Tools::trans('service') . ' ' . $model->primaryDescription();
                 $this->setTemplate('CopyServicioAT');
             }
         };
@@ -71,7 +71,7 @@ class CopyModel
             $serviceDestiny = new ServicioAT();
 
             $fieldsService = array_keys((new ServicioAT())->getModelFields());
-            $fieldsServiceExclude = ['codigo', 'editable', 'fecha', 'hora', 'idestado', 'idservicio', 'description'];
+            $fieldsServiceExclude = ['codigo', 'editable', 'fecha', 'hora', 'idestado', 'idservicio', 'descripcion', 'material', 'solucion', 'observaciones'];
 
             foreach ($fieldsService as $campo) {
                 if (false === in_array($campo, $fieldsServiceExclude)) {
@@ -82,6 +82,14 @@ class CopyModel
             $serviceDestiny->fecha = $this->request->request->get('fecha');
             $serviceDestiny->hora = $this->request->request->get('hora');
             $serviceDestiny->descripcion = $this->request->request->get('descripcion');
+            $serviceDestiny->material = $this->request->request->get('material');
+            $serviceDestiny->solucion = $this->request->request->get('solucion');
+            $serviceDestiny->observaciones = $this->request->request->get('observaciones');
+
+            // si se ha seleccionado un cliente diferente, lo actualizamos
+            if ($this->request->request->get('codcliente')) {
+                $serviceDestiny->codcliente = $this->request->request->get('codcliente');
+            }
 
             if (false === $serviceDestiny->save()) {
                 Tools::log()->warning('record-save-error');
@@ -93,8 +101,8 @@ class CopyModel
             $fieldsWork = array_keys((new TrabajoAT())->getModelFields());
             $fieldsWorkExclude = ['estado', 'idservicio', 'idtrabajo', 'fechainicio', 'horainicio'];
 
-            $startDate = $this->request->request->get('fechainicio', []);
-            $startHour = $this->request->request->get('horainicio', []);
+            $startDate = $this->request->request->getArray('fechainicio');
+            $startHour = $this->request->request->getArray('horainicio');
             foreach ($worksServiceOrigen as $index => $work) {
                 $workDestiny = new TrabajoAT();
 
@@ -124,10 +132,10 @@ class CopyModel
 
             if ((bool)$this->request->request->get('copy-attachments', false)) {
                 $where = [
-                    new DataBaseWhere('model', $this->modelClass),
-                    new DataBaseWhere('modelid|modelcode', $serviceOrigen->idservicio),
+                    Where::column('model', $this->modelClass),
+                    Where::column('modelid|modelcode', $serviceOrigen->idservicio),
                 ];
-                foreach (AttachedFileRelation::all($where, [], 0, 0) as $file) {
+                foreach (AttachedFileRelation::all($where) as $file) {
                     $newRelation = new AttachedFileRelation();
                     $newRelation->model = $this->modelClass;
                     $newRelation->modelid = $serviceDestiny->idservicio;

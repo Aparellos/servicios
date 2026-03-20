@@ -20,10 +20,10 @@
 namespace FacturaScripts\Test\Plugins;
 
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Dinamic\Lib\ServiceToInvoice;
+use FacturaScripts\Dinamic\Model\ServicioAT;
 use FacturaScripts\Dinamic\Model\Stock;
-use FacturaScripts\Plugins\Servicios\Lib\ServiceToInvoice;
-use FacturaScripts\Plugins\Servicios\Model\ServicioAT;
-use FacturaScripts\Plugins\Servicios\Model\TrabajoAT;
+use FacturaScripts\Dinamic\Model\TrabajoAT;
 use FacturaScripts\Test\Traits\LogErrorsTrait;
 use FacturaScripts\Test\Traits\RandomDataTrait;
 use PHPUnit\Framework\TestCase;
@@ -399,6 +399,44 @@ final class TrabajoAtTest extends TestCase
 
         // eliminamos
         $this->assertTrue($generated[0]->delete());
+        $this->assertTrue($service->delete());
+        $this->assertTrue($customer->delete());
+    }
+
+    public function testUpdateOnDelete(): void
+    {
+        // creamos un cliente
+        $customer = $this->getRandomCustomer();
+        $this->assertTrue($customer->save());
+
+        // creamos un servicio
+        $service = new ServicioAT();
+        $service->codalmacen = Tools::settings('default', 'codalmacen');
+        $service->codcliente = $customer->codcliente;
+        $service->descripcion = 'Test';
+        $service->idempresa = Tools::settings('default', 'idempresa');
+        $this->assertTrue($service->save());
+
+        // creamos un trabajo
+        $work = new TrabajoAT();
+        $work->idservicio = $service->idservicio;
+        $work->descripcion = 'Test work';
+        $work->cantidad = 1;
+        $work->precio = 10;
+        $this->assertTrue($work->save(), 'Error creating TrabajoAT');
+
+        // comprobamos que se ha actualizado el neto del servicio
+        $service->load($service->id());
+        $this->assertEquals(10, $service->neto);
+
+        // eliminamos el trabajo
+        $this->assertTrue($work->delete());
+
+        // comprobamos que se ha actualizado el neto del servicio
+        $service->load($service->id());
+        $this->assertEquals(0, $service->neto);
+
+        // eliminamos
         $this->assertTrue($service->delete());
         $this->assertTrue($customer->delete());
     }

@@ -1,7 +1,7 @@
 <?php
 /**
  * This file is part of Servicios plugin for FacturaScripts
- * Copyright (C) 2020-2025 Carlos Garcia Gomez <carlos@facturascripts.com>
+ * Copyright (C) 2020-2026 Carlos Garcia Gomez <carlos@facturascripts.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as
@@ -20,13 +20,13 @@
 namespace FacturaScripts\Plugins\Servicios;
 
 use FacturaScripts\Core\Base\DataBase;
-use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
 use FacturaScripts\Core\Lib\AjaxForms\SalesHeaderHTML;
 use FacturaScripts\Core\Model\Role;
 use FacturaScripts\Core\Model\RoleAccess;
 use FacturaScripts\Core\Plugins;
 use FacturaScripts\Core\Template\InitClass;
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Core\Where;
 use FacturaScripts\Dinamic\Controller\SendTicket;
 use FacturaScripts\Dinamic\Lib\ExportManager;
 use FacturaScripts\Dinamic\Lib\StockMovementManager;
@@ -64,8 +64,10 @@ final class Init extends InitClass
         // export manager
         if (Plugins::isEnabled('PlantillasPDF')) {
             ExportManager::addOptionModel('PlantillasPDFserviciosExport', 'PDF', 'ServicioAT');
+            ExportManager::addOptionModel('PlantillasMAILserviciosExport', 'MAIL', 'ServicioAT');
         } else {
             ExportManager::addOptionModel('PDFserviciosExport', 'PDF', 'ServicioAT');
+            ExportManager::addOptionModel('MAILserviciosExport', 'MAIL', 'ServicioAT');
         }
 
         // mod para los documentos de venta
@@ -92,8 +94,9 @@ final class Init extends InitClass
         new Model\PrioridadAT();
         new Model\TipoAT();
         new Model\CheckAT();
-        new Model\ServicioAT();
         new Model\ServicioCheckAT();
+        new Model\ServicioAT();
+        new Model\TrabajoAT();
         new PresupuestoCliente();
         new AlbaranCliente();
         new FacturaCliente();
@@ -124,8 +127,8 @@ final class Init extends InitClass
         foreach ($nameControllers as $nameController) {
             $roleAccess = new RoleAccess();
             $where = [
-                new DataBaseWhere('codrole', self::ROLE_NAME),
-                new DataBaseWhere('pagename', $nameController)
+                Where::eq('codrole', self::ROLE_NAME),
+                Where::eq('pagename', $nameController)
             ];
             if ($roleAccess->loadWhere($where)) {
                 // permission exists? Then skip
@@ -183,7 +186,13 @@ final class Init extends InitClass
             'print_pdf_footer_text' => '',
             'longnumero' => 6,
             'patron' => 'SER{ANYO}-{NUM}',
-            'workstatus' => 1
+            'workstatus' => 1,
+            'print_pdf_description' => 1,
+            'print_pdf_material' => 1,
+            'print_pdf_solution' => 1,
+            'print_ticket_description' => 1,
+            'print_ticket_material' => 1,
+            'print_ticket_solution' => 1,
         ];
 
         foreach ($defaults as $key => $value) {
@@ -197,7 +206,8 @@ final class Init extends InitClass
         $notificationModel = new EmailNotification();
         $keys = [
             'new-service-assignee', 'new-service-agent', 'new-service-customer',
-            'new-service-status', 'new-service-user', 'new-start-service'
+            'new-service-status', 'new-service-user', 'new-start-service',
+            'sendmail-ServicioAT'
         ];
         foreach ($keys as $key) {
             if ($notificationModel->load($key)) {
@@ -205,8 +215,8 @@ final class Init extends InitClass
             }
 
             $notificationModel->name = $key;
-            $notificationModel->body = Tools::lang()->trans($key . '-body');
-            $notificationModel->subject = Tools::lang()->trans($key);
+            $notificationModel->body = Tools::trans($key . '-body');
+            $notificationModel->subject = Tools::trans($key);
             $notificationModel->enabled = false;
             $notificationModel->save();
         }

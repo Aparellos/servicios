@@ -19,13 +19,13 @@
 
 namespace FacturaScripts\Plugins\Servicios\Model;
 
-use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
 use FacturaScripts\Core\DataSrc\Agentes;
 use FacturaScripts\Core\Model\Base\CompanyRelationTrait;
 use FacturaScripts\Core\Session;
 use FacturaScripts\Core\Template\ModelClass;
 use FacturaScripts\Core\Template\ModelTrait;
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Core\Where;
 use FacturaScripts\Dinamic\Lib\CodePatterns;
 use FacturaScripts\Dinamic\Lib\Email\MailNotifier;
 use FacturaScripts\Dinamic\Model\Agente;
@@ -124,6 +124,7 @@ class ServicioAT extends ModelClass
         foreach ($this->getTrabajos() as $trabajo) {
             $this->neto += $trabajo->precio * $trabajo->cantidad;
         }
+        $this->pipe('calculatePriceNet');
         $this->save();
     }
 
@@ -178,7 +179,7 @@ class ServicioAT extends ModelClass
         }
 
         // añadimos el cambio al log
-        $messageLog = Tools::lang()->trans('deleted-service');
+        $messageLog = Tools::trans('deleted-service');
         $this->log($messageLog);
 
         return true;
@@ -203,8 +204,7 @@ class ServicioAT extends ModelClass
      */
     public function getAvailablePriority(): array
     {
-        $priority = new PrioridadAT();
-        return $priority->all([], [], 0, 0);
+        return PrioridadAT::all();
     }
 
     /**
@@ -212,8 +212,7 @@ class ServicioAT extends ModelClass
      */
     public function getAvailableTypes(): array
     {
-        $type = new TipoAT();
-        return $type->all([], [], 0, 0);
+        return TipoAT::all();
     }
 
     /**
@@ -221,8 +220,7 @@ class ServicioAT extends ModelClass
      */
     public function getAvailableStatus(): array
     {
-        $status = new EstadoAT();
-        return $status->all([], [], 0, 0);
+        return EstadoAT::all();
     }
 
     public function getCustomer(?string $codcliente = null): Cliente
@@ -287,10 +285,9 @@ class ServicioAT extends ModelClass
      */
     public function getTrabajos(): array
     {
-        $trabajo = new DinTrabajoAT();
-        $where = [new DataBaseWhere('idservicio', $this->idservicio)];
+        $where = [Where::column('idservicio', $this->idservicio)];
         $order = ['fechainicio' => 'ASC', 'horainicio' => 'ASC'];
-        return $trabajo->all($where, $order, 0, 0);
+        return DinTrabajoAT::all($where, $order);
     }
 
     public function getUser(?string $nick = null): User
@@ -410,7 +407,7 @@ class ServicioAT extends ModelClass
             }
 
             // añadimos el cambio al log
-            $messageLog = Tools::lang()->trans('changed-status-to', [
+            $messageLog = Tools::trans('changed-status-to', [
                 '%oldStatus%' => $this->getStatus($this->getOriginal('idestado'))->nombre,
                 '%newStatus%' => $newStatus->nombre
             ]);
@@ -433,7 +430,7 @@ class ServicioAT extends ModelClass
             $this->notifyCustomer('new-service-customer');
         }
 
-        $message = Tools::lang()->trans('new-service-created', ['%number%' => $this->id()]);
+        $message = Tools::trans('new-service-created', ['%number%' => $this->id()]);
         $this->log($message);
 
         parent::onInsert();
@@ -470,7 +467,7 @@ class ServicioAT extends ModelClass
         $oldAssigned = $this->getAsignado($this->getOriginal('asignado') ?? '');
 
         // añadimos el cambio al log
-        $messageLog = Tools::lang()->trans('changed-assigned-to', [
+        $messageLog = Tools::trans('changed-assigned-to', [
             '%oldAssigned%' => $oldAssigned->nick ?? '-',
             '%newAssigned%' => $newAssigned->nick ?? '-'
         ]);
@@ -488,7 +485,7 @@ class ServicioAT extends ModelClass
         $oldAgent = $this->getAgent($this->getOriginal('codagente') ?? '');
 
         // añadimos el cambio al log
-        $messageLog = Tools::lang()->trans('changed-agent-to', [
+        $messageLog = Tools::trans('changed-agent-to', [
             '%oldAgent%' => $oldAgent->nombre ?? '-',
             '%newAgent%' => $newAgent->nombre ?? '-'
         ]);
@@ -506,7 +503,7 @@ class ServicioAT extends ModelClass
         $oldCustomer = $this->getCustomer($this->getOriginal('codcliente') ?? '');
 
         // añadimos el cambio al log
-        $messageLog = Tools::lang()->trans('changed-customer-to', [
+        $messageLog = Tools::trans('changed-customer-to', [
             '%oldCustomer%' => $oldCustomer->nombre ?? '-',
             '%newCustomer%' => $newCustomer->nombre ?? '-'
         ]);
@@ -552,7 +549,7 @@ class ServicioAT extends ModelClass
         $oldUser = $this->getUser($this->getOriginal('nick') ?? '');
 
         // añadimos el cambio al log
-        $messageLog = Tools::lang()->trans('changed-user-to', [
+        $messageLog = Tools::trans('changed-user-to', [
             '%oldUser%' => $oldUser->nick ?? '-',
             '%newUser%' => $newUser->nick ?? '-'
         ]);

@@ -1,7 +1,7 @@
 <?php
 /**
  * This file is part of Servicios plugin for FacturaScripts
- * Copyright (C) 2020-2024 Carlos Garcia Gomez <carlos@facturascripts.com>
+ * Copyright (C) 2020-2025 Carlos Garcia Gomez <carlos@facturascripts.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as
@@ -19,11 +19,12 @@
 
 namespace FacturaScripts\Plugins\Servicios\Model;
 
-use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
-use FacturaScripts\Core\Model\Agente;
 use FacturaScripts\Core\Template\ModelClass;
 use FacturaScripts\Core\Template\ModelTrait;
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Core\Where;
+use FacturaScripts\Dinamic\Model\Agente;
+use FacturaScripts\Dinamic\Model\PresupuestoCliente;
 use FacturaScripts\Dinamic\Model\ServicioAT as DinServicioAT;
 use FacturaScripts\Dinamic\Model\Stock;
 use FacturaScripts\Dinamic\Model\Variante;
@@ -111,21 +112,20 @@ class TrabajoAT extends ModelClass
     public static function getAvailableStatus(): array
     {
         return [
-            self::STATUS_NONE => Tools::lang()->trans('do-nothing'),
-            self::STATUS_MAKE_INVOICE => Tools::lang()->trans('make-invoice'),
-            self::STATUS_INVOICED => Tools::lang()->trans('invoiced'),
-            self::STATUS_MAKE_DELIVERY_NOTE => Tools::lang()->trans('make-delivery-note'),
-            self::STATUS_DELIVERY_NOTE => Tools::lang()->trans('delivery-note'),
-            self::STATUS_MAKE_ESTIMATION => Tools::lang()->trans('make-estimation'),
-            self::STATUS_ESTIMATION => Tools::lang()->trans('estimation'),
+            self::STATUS_NONE => Tools::trans('do-nothing'),
+            self::STATUS_MAKE_INVOICE => Tools::trans('make-invoice'),
+            self::STATUS_INVOICED => Tools::trans('invoiced'),
+            self::STATUS_MAKE_DELIVERY_NOTE => Tools::trans('make-delivery-note'),
+            self::STATUS_DELIVERY_NOTE => Tools::trans('delivery-note'),
+            self::STATUS_MAKE_ESTIMATION => Tools::trans('make-estimation'),
+            self::STATUS_ESTIMATION => Tools::trans('estimation'),
         ];
     }
 
     public function getVariante(): Variante
     {
         $variante = new Variante();
-        $where = [new DataBaseWhere('referencia', $this->referencia)];
-        $variante->loadWhere($where);
+        $variante->loadWhereEq('referencia', $this->referencia);
         return $variante;
     }
 
@@ -159,9 +159,12 @@ class TrabajoAT extends ModelClass
         }
 
         if ($this->referencia) {
-            $variante = $this->getVariante();
-            $this->descripcion = empty($this->descripcion) ? $variante->description() : $this->descripcion;
-            $this->precio = empty($this->precio) ? $variante->precio : $this->precio;
+            // guardamos el precio que le asignaríamos si le hacemos un presupuesto al cliente
+            $doc = new PresupuestoCliente();
+            $doc->setSubject($this->getServicio()->getSubject());
+            $line = $doc->getNewProductLine($this->referencia);
+            $this->precio = empty($this->precio) ? $line->pvpunitario : $this->precio;
+            $this->descripcion = empty($this->descripcion) ? $line->descripcion : $this->descripcion;
         }
 
         return parent::test();
@@ -172,7 +175,7 @@ class TrabajoAT extends ModelClass
         return empty($this->idservicio) ? parent::url($type, $list) : $this->getServicio()->url();
     }
 
-    protected function onChange($field): bool
+    protected function onChange(string $field): bool
     {
         switch ($field) {
             case 'cantidad':
@@ -189,7 +192,7 @@ class TrabajoAT extends ModelClass
     protected function onChangeCantidad(): void
     {
         // añadimos el cambio al log
-        $this->messageLog = Tools::lang()->trans('changed-quantity-work-to', [
+        $this->messageLog = Tools::trans('changed-quantity-work-to', [
             '%reference%' => $this->referencia,
             '%oldQuantity%' => $this->getOriginal('cantidad'),
             '%newQuantity%' => $this->cantidad,
@@ -200,7 +203,7 @@ class TrabajoAT extends ModelClass
     protected function onChangeReferencia(): void
     {
         // añadimos el cambio al log
-        $this->messageLog = Tools::lang()->trans('changed-referencia-work-to', [
+        $this->messageLog = Tools::trans('changed-referencia-work-to', [
             '%oldReference%' => $this->getOriginal('referencia'),
             '%newReference%' => $this->referencia,
             '%work%' => $this->idtrabajo
@@ -212,20 +215,21 @@ class TrabajoAT extends ModelClass
         parent::onDelete();
 
         $this->updateStock($this->referencia, $this->cantidad, $this->estado);
+
+        $this->getServicio()->calculatePriceNet();
     }
 
     protected function onInsert(): void
     {
         $this->updateStock($this->referencia, 0 - $this->cantidad, $this->estado);
 
-        $service = $this->getServicio();
-        $service->calculatePriceNet();
+        $this->getServicio()->calculatePriceNet();
 
         $log = new ServicioATLog();
         $log->idservicio = $this->idservicio;
-        $log->message = Tools::lang()->trans('new-work-created', [
+        $log->message = Tools::trans('new-work-created', [
             '%key%' => $this->id(),
-            '%service-key%' => $service->idservicio
+            '%service-key%' => $this->idservicio
         ]);
         $log->context = $this;
         $log->save();
@@ -235,8 +239,7 @@ class TrabajoAT extends ModelClass
 
     protected function onUpdate(): void
     {
-        $service = $this->getServicio();
-        $service->calculatePriceNet();
+        $this->getServicio()->calculatePriceNet();
 
         if ($this->cantidad != $this->getOriginal('cantidad')) {
             $this->onChangeCantidad();
@@ -276,8 +279,8 @@ class TrabajoAT extends ModelClass
 
         $stock = new Stock();
         $where = [
-            new DataBaseWhere('referencia', $referencia),
-            new DataBaseWhere('codalmacen', $this->getServicio()->codalmacen)
+            Where::eq('referencia', $referencia),
+            Where::eq('codalmacen', $this->getServicio()->codalmacen)
         ];
         if (false === $stock->loadWhere($where)) {
             // no hay registro de stock, lo creamos

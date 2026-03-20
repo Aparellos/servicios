@@ -20,10 +20,14 @@
 namespace FacturaScripts\Plugins\Servicios\Extension\Model;
 
 use Closure;
-use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Core\Where;
 use FacturaScripts\Plugins\StockAvanzado\Model\MovimientoStock;
 
+/**
+ * Este modelo aunque es del propio plugin tiene una extensión por el plugin Vemax
+ * Necesitamos que el corte añada un pipe a la función mágica __get() para que Vemax use extensiones y no herencia
+ */
 class TrabajoAT
 {
     protected function deleteStockMovement(): Closure
@@ -31,10 +35,10 @@ class TrabajoAT
         return function () {
             $movement = new MovimientoStock();
             $where = [
-                new DataBaseWhere('docid', $this->idtrabajo),
-                new DataBaseWhere('docmodel', 'TrabajoAT'),
+                Where::column('docid', $this->idtrabajo),
+                Where::column('docmodel', 'TrabajoAT'),
             ];
-            if ($movement->laodWhere($where)) {
+            if ($movement->loadWhere($where)) {
                 $movement->delete();
             }
         };
@@ -92,15 +96,15 @@ class TrabajoAT
             // buscamos el movimiento de stock
             $movement = new MovimientoStock();
             $where = [
-                new DataBaseWhere('docid', $this->idtrabajo),
-                new DataBaseWhere('docmodel', 'TrabajoAT'),
+                Where::column('docid', $this->idtrabajo),
+                Where::column('docmodel', 'TrabajoAT'),
             ];
             if (false === $movement->loadWhere($where)) {
                 // si no existe, lo creamos
                 $movement->referencia = $this->referencia;
                 $movement->docid = $this->idtrabajo;
                 $movement->docmodel = 'TrabajoAT';
-                $movement->documento = Tools::lang()->trans('service') . ' #' . $this->idservicio;
+                $movement->documento = Tools::trans('service') . ' #' . $this->idservicio;
                 $movement->idproducto = $this->getVariante()->idproducto;
             }
 

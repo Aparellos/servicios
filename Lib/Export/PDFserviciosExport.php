@@ -1,7 +1,7 @@
 <?php
 /**
  * This file is part of Servicios plugin for FacturaScripts
- * Copyright (C) 2021-2023 Carlos Garcia Gomez <carlos@facturascripts.com>
+ * Copyright (C) 2021-2026 Carlos Garcia Gomez <carlos@facturascripts.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as
@@ -24,20 +24,11 @@ use FacturaScripts\Core\Tools;
 use FacturaScripts\Dinamic\Model\ServicioAT;
 
 /**
- * Description of PDFserviciosExport
- *
  * @author Carlos Garcia Gomez           <carlos@facturascripts.com>
  * @author Jose Antonio Cuello Principal <yopli2000@gmail.com>
  */
 class PDFserviciosExport extends PDFExport
 {
-    /**
-     * @param ServicioAT $model
-     * @param array $columns
-     * @param string $title
-     *
-     * @return bool
-     */
     public function addModelPage($model, $columns, $title = ''): bool
     {
         $this->newPage();
@@ -53,11 +44,19 @@ class PDFserviciosExport extends PDFExport
             $this->printTableSection('machines', $machinesData);
         }
 
-        $this->printTextSection('description', $model->descripcion);
-        $this->printTextSection('material', $model->material);
-        $this->printTextSection('solution', $model->solucion);
+        if (!empty($model->descripcion) && (bool)Tools::settings('servicios', 'print_pdf_description', false)) {
+            $this->printTextSection('description', $model->descripcion);
+        }
 
-        if (Tools::settings('servicios', 'print_pdf_observations', false)) {
+        if (!empty($model->material) && (bool)Tools::settings('servicios', 'print_pdf_material', false)) {
+            $this->printTextSection('material', $model->material);
+        }
+
+        if (!empty($model->solucion) && (bool)Tools::settings('servicios', 'print_pdf_solution', false)) {
+            $this->printTextSection('solution', $model->solucion);
+        }
+
+        if (!empty($model->observaciones) && (bool)Tools::settings('servicios', 'print_pdf_observations', false)) {
             $this->printTextSection('observations', $model->observaciones);
         }
 
@@ -72,12 +71,7 @@ class PDFserviciosExport extends PDFExport
         return false;
     }
 
-    /**
-     * @param ServicioAT $model
-     *
-     * @return array
-     */
-    private function machinesData(&$model): array
+    protected function machinesData(&$model): array
     {
         $result = [];
         foreach ($model->getMachines() as $machine) {
@@ -90,13 +84,7 @@ class PDFserviciosExport extends PDFExport
         return $result;
     }
 
-    /**
-     * Print a section with an array of data.
-     *
-     * @param string $title
-     * @param array $data
-     */
-    protected function printTableSection($title, $data)
+    protected function printTableSection(string $title, array $data): void
     {
         $this->pdf->ezText("\n" . $this->i18n->trans($title) . "\n", self::FONT_SIZE + 4);
         $this->newLine();
@@ -104,13 +92,7 @@ class PDFserviciosExport extends PDFExport
         $this->pdf->ezText('');
     }
 
-    /**
-     * Print a section with a text data.
-     *
-     * @param string $title
-     * @param string $text
-     */
-    protected function printTextSection($title, $text, $addLine = true)
+    protected function printTextSection(string $title, ?string $text, bool $addLine = true): void
     {
         if (empty($text)) {
             return;
@@ -134,7 +116,7 @@ class PDFserviciosExport extends PDFExport
         ];
     }
 
-    private function serviceData(ServicioAT $model): array
+    protected function serviceData(ServicioAT $model): array
     {
         $subject = $model->getSubject();
         $tipoidfiscal = empty($subject->tipoidfiscal) ? $this->i18n->trans('cifnif') : $subject->tipoidfiscal;
@@ -161,12 +143,7 @@ class PDFserviciosExport extends PDFExport
         return $data;
     }
 
-    /**
-     * @param ServicioAT $model
-     *
-     * @return array
-     */
-    private function worksData(&$model): array
+    protected function worksData(ServicioAT &$model): array
     {
         $result = [];
         foreach ($model->getTrabajos() as $work) {

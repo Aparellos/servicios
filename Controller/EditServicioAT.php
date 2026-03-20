@@ -20,11 +20,11 @@
 namespace FacturaScripts\Plugins\Servicios\Controller;
 
 use Exception;
-use FacturaScripts\Core\Base\DataBase\DataBaseWhere;
 use FacturaScripts\Core\Lib\ExtendedController\BaseView;
 use FacturaScripts\Core\Lib\ExtendedController\DocFilesTrait;
 use FacturaScripts\Core\Lib\ExtendedController\EditController;
 use FacturaScripts\Core\Tools;
+use FacturaScripts\Core\Where;
 use FacturaScripts\Dinamic\Lib\ServiceToInvoice;
 use FacturaScripts\Dinamic\Model\ServicioAT;
 use FacturaScripts\Dinamic\Model\TipoAT;
@@ -92,7 +92,9 @@ class EditServicioAT extends EditController
     protected function createViews()
     {
         parent::createViews();
+
         $this->setTabsPosition('top');
+
         $this->createViewsWorks();
         $this->createViewsCategories();
         $this->createViewsChecks();
@@ -262,33 +264,17 @@ class EditServicioAT extends EditController
      */
     protected function execPreviousAction($action)
     {
-        switch ($action) {
-            case 'add-file':
-                return $this->addFileAction();
-
-            case 'auto-quantity':
-                return $this->calculateQuantity();
-
-            case 'delete-file':
-                return $this->deleteFileAction();
-
-            case 'edit-file':
-                return $this->editFileAction();
-
-            case 'make-delivery-note':
-                return $this->makeDeliveryNoteAction();
-
-            case 'make-estimation':
-                return $this->makeEstimationAction();
-
-            case 'make-invoice':
-                return $this->makeInvoiceAction();
-
-            case 'unlink-file':
-                return $this->unlinkFileAction();
-        }
-
-        return parent::execPreviousAction($action);
+        return match ($action) {
+            'add-file' => $this->addFileAction(),
+            'auto-quantity' => $this->calculateQuantity(),
+            'delete-file' => $this->deleteFileAction(),
+            'edit-file' => $this->editFileAction(),
+            'make-delivery-note' => $this->makeDeliveryNoteAction(),
+            'make-estimation' => $this->makeEstimationAction(),
+            'make-invoice' => $this->makeInvoiceAction(),
+            'unlink-file' => $this->unlinkFileAction(),
+            default => parent::execPreviousAction($action),
+        };
     }
 
     /**
@@ -331,7 +317,7 @@ class EditServicioAT extends EditController
                 }
 
                 $this->addButton($viewName, [
-                    'action' => 'CopyModel?model=' . $this->getModelClassName() . '&code=' . $view->model->primaryColumnValue(),
+                    'action' => 'CopyModel?model=' . $this->getModelClassName() . '&code=' . $view->model->id(),
                     'icon' => 'fa-solid fa-cut',
                     'label' => 'copy',
                     'type' => 'link'
@@ -343,14 +329,14 @@ class EditServicioAT extends EditController
                 break;
 
             case 'ListServicioATLog':
-                $where = [new DataBaseWhere('idservicio', $idservicio)];
+                $where = [Where::column('idservicio', $idservicio)];
                 $orderBy = ['creationdate' => 'DESC'];
                 $view->loadData('', $where, $orderBy);
                 break;
 
             case 'EditServicioCategoriaAT':
             case 'EditServicioCheckAT':
-                $where = [ new DataBaseWhere('idservice', $idservicio) ];
+                $where = [Where::column('idservice', $idservicio)];
                 $view->loadData('', $where);
                 // Remove checks if the service has no categories and checks.
                 if ($viewName === 'EditServicioCheckAT'
@@ -362,7 +348,7 @@ class EditServicioAT extends EditController
                 break;
 
             case 'EditTrabajoAT':
-                $where = [new DataBaseWhere('idservicio', $idservicio)];
+                $where = [Where::column('idservicio', $idservicio)];
                 $orderBy = ['fechainicio' => 'DESC', 'horainicio' => 'DESC', 'idtrabajo' => 'DESC'];
                 $view->loadData('', $where, $orderBy);
                 $this->loadStatusWorkValues($viewName, $view);
@@ -372,16 +358,19 @@ class EditServicioAT extends EditController
                         'icon' => 'fa-solid fa-calculator',
                         'label' => 'calculate-hours'
                     ]);
-                } elseif (false === $view->model->exists()) {
+                }
+
+                if (false === $view->model->exists()) {
                     $view->model->codagente = $this->getViewModelValue($mainViewName, 'codagente');
                     $view->model->nick = $this->getViewModelValue($mainViewName, 'nick');
                 }
+
                 break;
 
             case 'ListAlbaranCliente':
             case 'ListFacturaCliente':
             case 'ListPresupuestoCliente':
-                $where = [new DataBaseWhere('idservicio', $idservicio)];
+                $where = [Where::column('idservicio', $idservicio)];
                 $view->loadData('', $where);
                 break;
         }
